@@ -32,8 +32,8 @@
           (cl-loop for task in doom/ivy-task-tags maximize (length (car task))))
          (max-desc-width
           (cl-loop for task in tasks maximize (length (cl-cdadr task))))
-         (max-width (max (- (frame-width) (1+ max-type-width) max-desc-width)
-                         25)))
+         (max-width (+ max-type-width 1 max-desc-width 1))
+         (project-root-length (length (projectile-project-root))))
     (cl-loop
      with fmt = (format "%%-%ds %%-%ds%%s%%s:%%s" max-type-width max-width)
      for alist in tasks
@@ -43,7 +43,7 @@
                (propertize .type 'face (cdr (assoc .type doom/ivy-task-tags)))
                (substring .desc 0 (min max-desc-width (length .desc)))
                (propertize " | " 'face 'font-lock-comment-face)
-               (propertize (abbreviate-file-name .file) 'face 'font-lock-keyword-face)
+               (propertize (substring .file project-root-length) 'face 'font-lock-keyword-face)
                (propertize .line 'face 'font-lock-constant-face))))))
 
 (defun doom/ivy--tasks (target)
@@ -99,14 +99,15 @@
 (defun doom/ivy-tasks (&optional arg)
   "Search through all TODO/FIXME tags in the current project. Optional ARG will search only that file."
   (interactive "P")
-  (ivy-read (format "Tasks (%s): "
-                    (if arg
-                        (concat "in: " (file-relative-name buffer-file-name))
-                      "project"))
-            (doom/ivy--tasks-candidates
-             (doom/ivy--tasks (if arg buffer-file-name (projectile-project-root))))
-            :action #'doom/ivy--tasks-open-action
-            :caller 'doom/ivy-tasks))
+  (if-let ((tasks (doom/ivy--tasks (if arg buffer-file-name (projectile-project-root))))) 
+    (ivy-read (format "Tasks (%s): "
+                      (if arg
+                          (concat "in: " (file-relative-name buffer-file-name))
+                        "project"))
+              (doom/ivy--tasks-candidates tasks)
+              :action #'doom/ivy--tasks-open-action
+              :caller 'doom/ivy-tasks)
+    (message "No tasks")))
 
 (provide 'doom-todo-ivy)
 
